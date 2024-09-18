@@ -2,37 +2,15 @@ package main
 
 import (
 	"flag"
-	"fmt"
-	"log"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 	"time"
 
-	"github.com/bmatcuk/doublestar"
+	"go.uber.org/zap"
 )
 
-/*
-Usage
-
-	building binary from npm index.js
-
-	    go build -C ./node_modules/cy-jsonnet/jsonnet
-
-	execution
-
-	    cy-jsonnet.[sh|exe]  {jsonnet root folder} {jsonnet file pattern} {optional output folder} {optional generateTestData extvar flag}
-	    eg :- cy-jsonnet.exe --jsonnetRootFolder=support/jsonnet --fileSearchPattern=*.jsonnet --outputFolder=fixtures/testData --generateTestData
-
-	output
-	    generated json file based on jsonnet definition
-	    if no outputfile path mentioned, out file will be in the same path as jsonnet input file with .json extension sufix
-	    if no generateTestData provided, it will be set to false
-*/
-func main() {
-	start := time.Now()
-	// Define flags
+func parseFlags() (string, string, string, bool) {
 	var jsonnetRootFolder string
 	var fileSearchPattern string
 	var outputFolder string
@@ -43,48 +21,87 @@ func main() {
 	flag.StringVar(&outputFolder, "outputFolder", jsonnetRootFolder, "Root folder to generate json files of jsonnet")
 	flag.BoolVar(&generateTestData, "generateTestData", false, "Jsonnet extVar flag for controlling test data generation")
 
-	// Parse command line arguments
 	flag.Parse()
 
 	if jsonnetRootFolder == "" || fileSearchPattern == "" {
-		log.Panic("Must provide jsonnet root folder and file name pattern!!")
 		flag.PrintDefaults()
-		return
+		panic("Must provide jsonnet root folder and file name pattern!!")
 	}
 
-	fmt.Printf("jsonnet Root Folder : %s\n", jsonnetRootFolder)
-	fmt.Printf("fileSearchPattern : %s\n", fileSearchPattern)
-	fmt.Printf("Output Folder: %s\n", outputFolder)
-	fmt.Printf("generateTestData: %t\n", generateTestData)
+	return jsonnetRootFolder, fileSearchPattern, outputFolder, generateTestData
+}
 
-	pathToSearch := path.Join(jsonnetRootFolder, fileSearchPattern)
-	jsonnetFiles, globErr := doublestar.Glob(pathToSearch) // Using doublestar dependency because Go's native glob method does not support ** in grep patterns
+func findFiles(root, pattern string) ([]string, error) {
+	var files []string
+	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if matched, err := filepath.Match(pattern, filepath.Base(path)); err != nil {
+			return err
+		} else if matched {
+			files = append(files, path)
+		}
+		return nil
+	})
+	return files, err
+}
+
+func processJsonnetFiles(jsonnetRootFolder, fileSearchPattern, outputFolder string, generateTestData bool, sugar *zap.SugaredLogger) {
+	jsonnetFiles, globErr := findFiles(jsonnetRootFolder, fileSearchPattern)
 	if globErr != nil {
-		log.Panic(globErr)
+		sugar.Panic(globErr)
 		return
 	}
 
-	fmt.Println("Found", len(jsonnetFiles), "jsonnet files at the jsonnet path")
+	sugar.Infof("Found %d jsonnet files at the jsonnet path", len(jsonnetFiles))
 
 	for _, jsonnetFile := range jsonnetFiles {
-		fmt.Printf("Input jsonnet file: %s\n", jsonnetFile)
-		tempDir := strings.ReplaceAll(filepath.Dir(jsonnetFile), jsonnetRootFolder, outputFolder)
-		fmt.Printf("tempDir path : %s\n", tempDir)
-		tempFile := strings.ReplaceAll(filepath.Base(jsonnetFile), ".jsonnet", ".json")
-		errDir := os.MkdirAll(tempDir, os.ModePerm)
-		if errDir != nil {
-			fmt.Println(errDir)
-			return
-		}
-		outputFile := filepath.Join(tempDir, tempFile)
-		fmt.Printf("Output json file: %s\n", outputFile)
-		jsonData := Load(jsonnetFile, generateTestData)
-		err := os.WriteFile(outputFile, []byte(jsonData), 0777)
-		if err != nil {
-			log.Panic(err.Error())
-		}
+		processJsonnetFile(jsonnetFile, jsonnetRootFolder, outputFolder, generateTestData, sugar)
+	}
+}
+
+func processJsonnetFile(jsonnetFile, jsonnetRootFolder, outputFolder string, generateTestData bool, sugar *zap.SugaredLogger) {
+	sugar.Infof("Input jsonnet file: %s", jsonnetFile)
+	tempDir := strings.ReplaceAll(filepath.Dir(jsonnetFile), jsonnetRootFolder, outputFolder)
+	sugar.Infof("tempDir path: %s", tempDir)
+	tempFile := strings.ReplaceAll(filepath.Base(jsonnetFile), ".jsonnet", ".json")
+	createDirAndWriteFile(tempDir, tempFile, jsonnetFile, generateTestData, sugar)
+}
+
+func createDirAndWriteFile(tempDir, tempFile, jsonnetFile string, generateTestData bool, sugar *zap.SugaredLogger) {
+	errDir := os.MkdirAll(tempDir, os.ModePerm)
+	if errDir != nil {
+		sugar.Error(errDir)
+		return
 	}
 
+	outputFile := filepath.Join(tempDir, tempFile)
+	sugar.Infof("Output json file: %s", outputFile)
+	jsonData := Load(jsonnetFile, generateTestData)
+	err := os.WriteFile(outputFile, []byte(jsonData), 0777)
+	if err != nil {
+		sugar.Panic(err.Error())
+	}
+}
+
+func main() {
+	start := time.Now()
+
+	// Initialize logger
+	logger, _ := zap.NewProduction()
+	defer logger.Sync() // flushes buffer, if any
+	sugar := logger.Sugar()
+
+	jsonnetRootFolder, fileSearchPattern, outputFolder, generateTestData := parseFlags()
+
+	sugar.Infof("jsonnet Root Folder: %s", jsonnetRootFolder)
+	sugar.Infof("fileSearchPattern: %s", fileSearchPattern)
+	sugar.Infof("Output Folder: %s", outputFolder)
+	sugar.Infof("generateTestData: %t", generateTestData)
+
+	processJsonnetFiles(jsonnetRootFolder, fileSearchPattern, outputFolder, generateTestData, sugar)
+
 	duration := time.Since(start)
-	fmt.Println("Completed processing", os.Args, ". Time in nano seconds", duration.Nanoseconds())
+	sugar.Infof("Completed processing %v. Time in nano seconds: %d", os.Args, duration.Nanoseconds())
 }
