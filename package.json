@@ -1,0 +1,15 @@
+{
+  "name": "cy-jsonnet",
+  "version": "0.0.6",
+  "description": "Cypress plugin to generate json data from JSONNET files",
+  "main": "index.js",
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "sumit.agarwal@bd.com,anoop.sasi@bd.com",
+  "license": "MIT"
+}
