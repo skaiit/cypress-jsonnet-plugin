@@ -13,6 +13,7 @@ import (
 	"github.com/google/go-jsonnet/ast"
 )
 
+// Logger is the global logger for the application.
 func parseFlags() (string, string, string, bool) {
 	var jsonnetRootFolder string
 	var fileSearchPattern string
@@ -34,6 +35,7 @@ func parseFlags() (string, string, string, bool) {
 	return jsonnetRootFolder, fileSearchPattern, outputFolder, generateTestData
 }
 
+// findFiles finds all the files in the given root folder that match the given pattern.
 func findFiles(root, pattern string) ([]string, error) {
 	var files []string
 	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
@@ -50,6 +52,7 @@ func findFiles(root, pattern string) ([]string, error) {
 	return files, err
 }
 
+// processJsonnetFiles processes all the jsonnet files in the given root folder and generates JSON files in the output folder.
 func processJsonnetFiles(jsonnetRootFolder, fileSearchPattern, outputFolder string, generateTestData bool) {
 	jsonnetFiles, globErr := findFiles(jsonnetRootFolder, fileSearchPattern)
 	if globErr != nil {
@@ -64,6 +67,7 @@ func processJsonnetFiles(jsonnetRootFolder, fileSearchPattern, outputFolder stri
 	}
 }
 
+// processJsonnetFile processes a single jsonnet file and generates a JSON file in the output folder.
 func processJsonnetFile(jsonnetFile, jsonnetRootFolder, outputFolder string, generateTestData bool) {
 	Logger.Infof("Input jsonnet file: %s", jsonnetFile)
 	tempDir := strings.ReplaceAll(filepath.Dir(jsonnetFile), jsonnetRootFolder, outputFolder)
@@ -72,6 +76,7 @@ func processJsonnetFile(jsonnetFile, jsonnetRootFolder, outputFolder string, gen
 	createDirAndWriteFile(tempDir, tempFile, jsonnetFile, generateTestData)
 }
 
+// createDirAndWriteFile creates a directory and writes the generated JSON file.
 func createDirAndWriteFile(tempDir, tempFile, jsonnetFile string, generateTestData bool) {
 	errDir := os.MkdirAll(tempDir, os.ModePerm)
 	if errDir != nil {
@@ -103,6 +108,7 @@ func createFakeFunction() *jsonnet.NativeFunction {
 	}
 }
 
+// CallGoFakeIt generates fake data using gofakeit library.
 func CallGoFakeIt(pattern string) (string, error) {
 	return gofakeit.Generate(pattern)
 }
