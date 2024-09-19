@@ -2,40 +2,62 @@ const os = require('os');
 const fs = require('fs');
 const { execSync } = require('child_process');
 const path = require('path');
-const pino = require('pino');
-
+ 
 const jsonnetModulePath = path.join('./node_modules/cy-jsonnet/jsonnet');
-
+ 
 let commandToRun = "";
-
-// Configure pino logger
-const logger = pino({
-  level: 'info',
-  prettyPrint: { colorize: true }
-});
-
+ 
 /**
- * Build code to generate the jsonnet binary with custom extensions
- * Set the commandToRun so other functions can run it for jsonnet interpretation
- */
+* Build code to generate the jsonnet binary with custom extensions
+* Set the commandToRun so other function can run it for jsonnet interpretation
+*/
 function buildPlugin() {
   try {
-    logger.info('Generating cy-jsonnet binary');
+    console.info('Generating cy-jsonnet binary');
     execSync(`go build -C ${jsonnetModulePath}`);
     let runner = path.join(jsonnetModulePath, 'cy-jsonnet');
     commandToRun = `${runner}`;
-    // If Windows OS, setup accordingly 
+    // If windows OS, setup accordingly
     if (os.platform().includes('win32')) {
       runner = path.join(jsonnetModulePath, 'cy-jsonnet.exe');
       commandToRun = `cmd /c ${runner}`;
-    } else {
-      logger.info('Setting the shell script permission to be executable');
+    }
+    else {
+      console.log('Setting the shell script permission to be executable');
       execSync(`chmod +x ${runner}`);
     }
-    logger.info(`Command to run = ${commandToRun}`);
+    console.info('Command to run = '+commandToRun);
+    console.info('Generating cy-jsonnet binary');
   } catch (err) {
-    logger.error('An error occurred during jsonnet extension build');
-    logger.error(err);
+    console.error('An error occurred during jsonnet extension build');
+    console.error(err);
     process.exit(1);
   }
 }
+ 
+/**
+* interpretJsonnet provides support to generate the json
+* @param {string} jsonnetRootFolder - jsonnet root folder for all template files
+* @param {string} fileSearchPattern - jsonnet file name pattern e.g. '*.jsonnet'
+* @param {string} outputFolder -path for output json
+* @param {string} generateTestData -Std.extVar("generateTestData") to avoid any jsonnet->json
+*/
+function interpretJsonnet(jsonnetRootFolder,fileSearchPattern, outputFolder, generateTestData = false) {
+  try {
+    let command = `${commandToRun} --jsonnetRootFolder=${jsonnetRootFolder} --fileSearchPattern=${fileSearchPattern} --outputFolder=${outputFolder}`
+    if (generateTestData){
+      command = command + " --generateTestData"
+    }
+    const commandShellStdout = execSync(command).toString();
+    console.log(commandShellStdout);
+  } catch (err) {
+    console.error('An error occurred during jsonnet evaluation for dynamic test creation:', jsonnetRootFolder);
+    console.error(err);
+    process.exit(1);
+  }
+}
+ 
+buildPlugin();
+module.exports = {
+  interpretJsonnet,
+}; 
