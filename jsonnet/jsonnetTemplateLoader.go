@@ -81,7 +81,7 @@ func createDirAndWriteFile(tempDir, tempFile, jsonnetFile string, generateTestDa
 
 	outputFile := filepath.Join(tempDir, tempFile)
 	Logger.Infof("Output json file: %s", outputFile)
-	jsonData := Load(jsonnetFile, generateTestData)
+	jsonData := GenerateJsonFromTemplate(jsonnetFile, generateTestData)
 	err := os.WriteFile(outputFile, []byte(jsonData), 0777)
 	if err != nil {
 		Logger.Panic(err.Error())
@@ -107,8 +107,8 @@ func CallGoFakeIt(pattern string) (string, error) {
 	return gofakeit.Generate(pattern)
 }
 
-// Load processes a jsonnet template file and returns the generated JSON string.
-func Load(templateFilePath string, generateTestData bool) string {
+// GenerateJsonFromTemplate processes a jsonnet template file and returns the generated JSON string.
+func GenerateJsonFromTemplate(templateFilePath string, generateTestData bool) string {
 	vm := jsonnet.MakeVM()
 
 	// Set up the jsonnet VM
