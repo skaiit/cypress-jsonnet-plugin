@@ -8,23 +8,25 @@ import (
 	"go.uber.org/zap"
 )
 
+var Logger *zap.SugaredLogger
+
 func main() {
 	start := time.Now()
 
 	// Initialize logger
-	logger, _ := zap.NewProduction()
-	defer logger.Sync() // flushes buffer, if any
-	sugar := logger.Sugar()
+	rawLogger, _ := zap.NewProduction()
+	defer rawLogger.Sync() // flushes buffer, if any
+	Logger := rawLogger.Sugar()
 
 	jsonnetRootFolder, fileSearchPattern, outputFolder, generateTestData := parseFlags()
 
-	sugar.Infof("jsonnet Root Folder: %s", jsonnetRootFolder)
-	sugar.Infof("fileSearchPattern: %s", fileSearchPattern)
-	sugar.Infof("Output Folder: %s", outputFolder)
-	sugar.Infof("generateTestData: %t", generateTestData)
+	Logger.Infof("jsonnet Root Folder: %s", jsonnetRootFolder)
+	Logger.Infof("fileSearchPattern: %s", fileSearchPattern)
+	Logger.Infof("Output Folder: %s", outputFolder)
+	Logger.Infof("generateTestData: %t", generateTestData)
 
-	processJsonnetFiles(jsonnetRootFolder, fileSearchPattern, outputFolder, generateTestData, sugar)
+	processJsonnetFiles(jsonnetRootFolder, fileSearchPattern, outputFolder, generateTestData)
 
 	duration := time.Since(start)
-	sugar.Infof("Completed processing %v. Time in nano seconds: %d", os.Args, duration.Nanoseconds())
+	Logger.Infof("Completed processing %v. Time in nano seconds: %d", os.Args, duration.Nanoseconds())
 }

@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"flag"
-	"log"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -12,7 +11,6 @@ import (
 	"github.com/brianvoe/gofakeit/v7"
 	jsonnet "github.com/google/go-jsonnet"
 	"github.com/google/go-jsonnet/ast"
-	"go.uber.org/zap"
 )
 
 func parseFlags() (string, string, string, bool) {
@@ -30,7 +28,7 @@ func parseFlags() (string, string, string, bool) {
 
 	if jsonnetRootFolder == "" || fileSearchPattern == "" {
 		flag.PrintDefaults()
-		panic("Must provide jsonnet root folder and file name pattern!!")
+		Logger.Panic("Must provide jsonnet root folder and file name pattern!!")
 	}
 
 	return jsonnetRootFolder, fileSearchPattern, outputFolder, generateTestData
@@ -52,41 +50,41 @@ func findFiles(root, pattern string) ([]string, error) {
 	return files, err
 }
 
-func processJsonnetFiles(jsonnetRootFolder, fileSearchPattern, outputFolder string, generateTestData bool, sugar *zap.SugaredLogger) {
+func processJsonnetFiles(jsonnetRootFolder, fileSearchPattern, outputFolder string, generateTestData bool) {
 	jsonnetFiles, globErr := findFiles(jsonnetRootFolder, fileSearchPattern)
 	if globErr != nil {
-		sugar.Panic(globErr)
+		Logger.Panic(globErr)
 		return
 	}
 
-	sugar.Infof("Found %d jsonnet files at the jsonnet path", len(jsonnetFiles))
+	Logger.Infof("Found %d jsonnet files at the jsonnet path", len(jsonnetFiles))
 
 	for _, jsonnetFile := range jsonnetFiles {
-		processJsonnetFile(jsonnetFile, jsonnetRootFolder, outputFolder, generateTestData, sugar)
+		processJsonnetFile(jsonnetFile, jsonnetRootFolder, outputFolder, generateTestData)
 	}
 }
 
-func processJsonnetFile(jsonnetFile, jsonnetRootFolder, outputFolder string, generateTestData bool, sugar *zap.SugaredLogger) {
-	sugar.Infof("Input jsonnet file: %s", jsonnetFile)
+func processJsonnetFile(jsonnetFile, jsonnetRootFolder, outputFolder string, generateTestData bool) {
+	Logger.Infof("Input jsonnet file: %s", jsonnetFile)
 	tempDir := strings.ReplaceAll(filepath.Dir(jsonnetFile), jsonnetRootFolder, outputFolder)
-	sugar.Infof("tempDir path: %s", tempDir)
+	Logger.Infof("tempDir path: %s", tempDir)
 	tempFile := strings.ReplaceAll(filepath.Base(jsonnetFile), ".jsonnet", ".json")
-	createDirAndWriteFile(tempDir, tempFile, jsonnetFile, generateTestData, sugar)
+	createDirAndWriteFile(tempDir, tempFile, jsonnetFile, generateTestData)
 }
 
-func createDirAndWriteFile(tempDir, tempFile, jsonnetFile string, generateTestData bool, sugar *zap.SugaredLogger) {
+func createDirAndWriteFile(tempDir, tempFile, jsonnetFile string, generateTestData bool) {
 	errDir := os.MkdirAll(tempDir, os.ModePerm)
 	if errDir != nil {
-		sugar.Error(errDir)
+		Logger.Error(errDir)
 		return
 	}
 
 	outputFile := filepath.Join(tempDir, tempFile)
-	sugar.Infof("Output json file: %s", outputFile)
+	Logger.Infof("Output json file: %s", outputFile)
 	jsonData := Load(jsonnetFile, generateTestData)
 	err := os.WriteFile(outputFile, []byte(jsonData), 0777)
 	if err != nil {
-		sugar.Panic(err.Error())
+		Logger.Panic(err.Error())
 	}
 }
 
@@ -121,7 +119,7 @@ func Load(templateFilePath string, generateTestData bool) string {
 	// Evaluate the jsonnet file
 	jsonStr, err := vm.EvaluateFile(templateFilePath)
 	if err != nil {
-		log.Panic(err.Error())
+		Logger.Panic(err.Error())
 	}
 	return jsonStr
 }
