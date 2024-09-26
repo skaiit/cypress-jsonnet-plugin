@@ -16,7 +16,7 @@ func main() {
 	// Initialize logger
 	rawLogger, _ := zap.NewProduction()
 	defer rawLogger.Sync() // flushes buffer, if any
-	Logger := rawLogger.Sugar()
+	Logger = rawLogger.Sugar()
 
 	jsonnetRootFolder, fileSearchPattern, outputFolder, generateTestData := parseFlags()
 
