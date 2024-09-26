@@ -4,10 +4,12 @@ import (
 	"encoding/json"
 	"flag"
 	"os"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
 
+	"github.com/bmatcuk/doublestar"
 	"github.com/brianvoe/gofakeit/v7"
 	jsonnet "github.com/google/go-jsonnet"
 	"github.com/google/go-jsonnet/ast"
@@ -35,26 +37,10 @@ func parseFlags() (string, string, string, bool) {
 	return jsonnetRootFolder, fileSearchPattern, outputFolder, generateTestData
 }
 
-// findFiles finds all the files in the given root folder that match the given pattern.
-func findFiles(root, pattern string) ([]string, error) {
-	var files []string
-	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if matched, err := filepath.Match(pattern, filepath.Base(path)); err != nil {
-			return err
-		} else if matched {
-			files = append(files, path)
-		}
-		return nil
-	})
-	return files, err
-}
-
 // processJsonnetFiles processes all the jsonnet files in the given root folder and generates JSON files in the output folder.
 func processJsonnetFiles(jsonnetRootFolder, fileSearchPattern, outputFolder string, generateTestData bool) {
-	jsonnetFiles, globErr := findFiles(jsonnetRootFolder, fileSearchPattern)
+	fileSearchPath := path.Join(jsonnetRootFolder, fileSearchPattern)
+	jsonnetFiles, globErr := doublestar.Glob(fileSearchPath)
 	if globErr != nil {
 		Logger.Panic(globErr)
 		return
